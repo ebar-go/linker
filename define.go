@@ -26,23 +26,20 @@ type ContextParam interface {
 // IRequest 请求
 type IRequest interface {
 	Body() []byte
-	//Bind(decode Decoder) error // 解析结构体
 }
 
 // IConnection 连接
 type IConnection interface {
-	IP() string // 获取客户端IP
-	//Push(encoder Encoder)    // 推送消息
-	Push(msg []byte)
-	Connection() net.Conn // 原始连接
-	Close()               // 关闭
+	IP() string        // 获取客户端IP
+	Push(msg []byte)   // 推送数据
+	NetConn() net.Conn // 原始连接
+	Close()            // 关闭
 }
 
-// IServer TCP服务,负责启动tcp服务
+// IServer 服务接口
 type IServer interface {
-	Start() error //启动服务器方法
-	Use(handlers ...HandleFunc)
-
+	Start() error                                 //启动服务
+	Use(handlers ...HandleFunc)                   // 设置中间件
 	SetOnConnect(func(connection IConnection))    // 注册连接时的回调
 	SetOnDisconnect(func(connection IConnection)) // 注册断开连接时的回调
 	SetOnReceive(hookFunc HandleFunc)             // 注册receive回调

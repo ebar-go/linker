@@ -2,8 +2,6 @@ package linker
 
 import (
 	"bufio"
-	"context"
-	"linker/core"
 	"linker/utils/binary"
 	"log"
 	"net"
@@ -47,7 +45,7 @@ func (s *TcpServer) init() (err error) {
 
 		log.Printf("start tcp listen: %s", bind)
 
-		// split N core accept
+		// 利用多线程处理连接初始化
 		for i := 0; i < s.conf.Accept; i++ {
 			go s.listen(listener)
 		}
@@ -59,7 +57,6 @@ func (s *TcpServer) listen(lis *net.TCPListener) {
 	var (
 		conn *net.TCPConn
 		err  error
-		r    int
 	)
 
 	for {
@@ -85,57 +82,59 @@ func (s *TcpServer) listen(lis *net.TCPListener) {
 			log.Printf("client new request ,ip: %v", conn.RemoteAddr())
 		}
 
-		// 一个goroutine处理一个channel
-		go s.handle(conn, r)
-		if r++; r == core.MaxInt {
-			r = 0
-		}
+		// 一个goroutine处理一个连接
+		go s.handle(conn)
 
 	}
 }
 
-func (s *TcpServer) handle(conn *net.TCPConn, r int) {
+func (s *TcpServer) handle(conn *net.TCPConn) {
 	if s.conf.Debug {
 		lAddr := conn.LocalAddr().String()
 		rAddr := conn.RemoteAddr().String()
-		log.Printf("start serve \"%s\" with \"%s\"", lAddr, rAddr)
+		log.Printf("start handle \"%s\" with \"%s\"", lAddr, rAddr)
 	}
 
-	var (
-		connection = &TcpConnection{instance: conn, sendQueue: make(chan []byte, s.conf.QueueSize), once: new(sync.Once)}
-	)
-
-	s.OnConnect(connection)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// 初始化连接
+	connection := &TcpConnection{instance: conn}
+	connection.init(s.conf.QueueSize, s.conf.DataLength)
 
 	// 分发响应数据
-	go connection.Dispatch(ctx)
+	go connection.dispatchResponse()
 
-	// 利用bufio.Scanner解决粘包问题
-	scaner := connection.getScanner(s.conf.DataLength)
+	// 开启连接事件回调
+	s.OnConnect(connection)
 
 	// 处理接收数据
-	connection.HandleRequest(scaner, s.engine)
+	connection.handleRequest(s.engine)
 
+	// 关闭连接事件回调
 	s.OnDisconnect(connection)
 }
 
 type TcpConnection struct {
-	sendQueue chan []byte
-
 	instance *net.TCPConn
 
+	sendQueue chan []byte    // 发送队列
+	scanner   *bufio.Scanner // 读取请求数据
+
 	once *sync.Once
+	done chan struct{} // 关闭标识
 }
 
-func (conn TcpConnection) IP() string {
+func (conn *TcpConnection) init(sendQueueSize int, packetDataLength int) {
+	conn.sendQueue = make(chan []byte, sendQueueSize)
+	conn.scanner = conn.getScanner(packetDataLength)
+	conn.once = new(sync.Once)
+	conn.done = make(chan struct{})
+}
+
+func (conn *TcpConnection) IP() string {
 	ip, _, _ := net.SplitHostPort(conn.instance.RemoteAddr().String())
 	return ip
 }
 
-func (conn TcpConnection) Push(msg []byte) {
+func (conn *TcpConnection) Push(msg []byte) {
 	// 当入列速度大于出列速度，消息将被抛弃，需要合理设置队列长度
 	select {
 	case conn.sendQueue <- msg:
@@ -143,12 +142,14 @@ func (conn TcpConnection) Push(msg []byte) {
 	}
 }
 
-func (conn TcpConnection) Connection() net.Conn {
+func (conn *TcpConnection) NetConn() net.Conn {
 	return conn.instance
 }
 
-func (conn TcpConnection) Close() {
+// Close 关闭请求
+func (conn *TcpConnection) Close() {
 	conn.once.Do(func() {
+		close(conn.done)
 		close(conn.sendQueue)
 		_ = conn.instance.Close()
 	})
@@ -156,13 +157,13 @@ func (conn TcpConnection) Close() {
 }
 
 // 分发数据
-func (conn TcpConnection) Dispatch(ctx context.Context) {
+func (conn *TcpConnection) dispatchResponse() {
 	defer conn.Close()
 
 	var err error
 	for {
 		select {
-		case <-ctx.Done():
+		case <-conn.done:
 			return
 		default:
 			msg, ok := <-conn.sendQueue
@@ -178,7 +179,7 @@ func (conn TcpConnection) Dispatch(ctx context.Context) {
 	}
 }
 
-func (conn TcpConnection) getScanner(packetDataLength int) *bufio.Scanner {
+func (conn *TcpConnection) getScanner(packetDataLength int) *bufio.Scanner {
 	scan := bufio.NewScanner(conn.instance)
 	if packetDataLength <= 0 {
 		return scan
@@ -197,26 +198,34 @@ func (conn TcpConnection) getScanner(packetDataLength int) *bufio.Scanner {
 	return scan
 }
 
-func (conn TcpConnection) HandleRequest(scanner *bufio.Scanner, engine *Engine) {
+// handleRequest 处理请求
+func (conn *TcpConnection) handleRequest(engine *Engine) {
+	defer conn.Close()
 	// 利用对象池实例化context,避免GC
 	// 会导致内存随着连接的增加而增加
 	ctxPool := engine.ContextPool()
 
 	for {
-		if !scanner.Scan() {
-			log.Println("scanner failed:", scanner.Err())
+		select {
+		case <-conn.done: // 退出
 			return
+		default:
+			if !conn.scanner.Scan() {
+				log.Println("scanner failed:", conn.scanner.Err())
+				return
+			}
+			// 通过对象池初始化时，会导致内存缓慢上涨,直到稳定
+			//ctx := &Context{engine: engine}
+			ctx := ctxPool.Get().(*Context)
+			ctx.Reset(conn.scanner.Bytes(), conn)
+
+			// 执行回调
+			ctx.Run()
+
+			// 回收
+			ctxPool.Put(ctx)
 		}
-		// 通过对象池初始化时，会导致内存缓慢上涨,直到稳定
-		//ctx := &Context{engine: engine}
-		ctx := ctxPool.Get().(*Context)
-		ctx.Reset(scanner.Bytes(), conn)
 
-		// 执行回调
-		ctx.Run()
-
-		// 回收
-		ctxPool.Put(ctx)
 	}
 
 }
