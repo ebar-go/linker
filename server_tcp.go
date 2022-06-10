@@ -19,6 +19,8 @@ type TcpServer struct {
 }
 
 func (s *TcpServer) Start() error {
+	s.engine.Use(s.OnReceive)
+
 	return s.init()
 }
 
@@ -60,8 +62,6 @@ func (s *TcpServer) listen(lis *net.TCPListener) {
 		r    int
 	)
 
-	s.engine.Use(s.OnReceive)
-
 	for {
 		if conn, err = lis.AcceptTCP(); err != nil {
 			// if listener close then return
@@ -102,7 +102,7 @@ func (s *TcpServer) handle(conn *net.TCPConn, r int) {
 	}
 
 	var (
-		connection = &TcpConnection{instance: conn, queue: make(chan []byte, s.conf.QueueSize)}
+		connection = &TcpConnection{instance: conn, sendQueue: make(chan []byte, s.conf.QueueSize), once: new(sync.Once)}
 	)
 
 	s.OnConnect(connection)
@@ -113,16 +113,21 @@ func (s *TcpServer) handle(conn *net.TCPConn, r int) {
 	// 分发响应数据
 	go connection.Dispatch(ctx)
 
+	// 利用bufio.Scanner解决粘包问题
+	scaner := connection.getScanner(s.conf.DataLength)
+
 	// 处理接收数据
-	connection.HandleRequest(s.conf.DataLength, s.engine)
+	connection.HandleRequest(scaner, s.engine)
 
 	s.OnDisconnect(connection)
 }
 
 type TcpConnection struct {
-	queue chan []byte
+	sendQueue chan []byte
 
 	instance *net.TCPConn
+
+	once *sync.Once
 }
 
 func (conn TcpConnection) IP() string {
@@ -131,8 +136,9 @@ func (conn TcpConnection) IP() string {
 }
 
 func (conn TcpConnection) Push(msg []byte) {
+	// 当入列速度大于出列速度，消息将被抛弃，需要合理设置队列长度
 	select {
-	case conn.queue <- msg:
+	case conn.sendQueue <- msg:
 	default:
 	}
 }
@@ -142,8 +148,11 @@ func (conn TcpConnection) Connection() net.Conn {
 }
 
 func (conn TcpConnection) Close() {
-	close(conn.queue)
-	_ = conn.instance.Close()
+	conn.once.Do(func() {
+		close(conn.sendQueue)
+		_ = conn.instance.Close()
+	})
+
 }
 
 // 分发数据
@@ -156,7 +165,7 @@ func (conn TcpConnection) Dispatch(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			msg, ok := <-conn.queue
+			msg, ok := <-conn.sendQueue
 			if !ok { // 队列已关闭
 				return
 			}
@@ -188,30 +197,26 @@ func (conn TcpConnection) getScanner(packetDataLength int) *bufio.Scanner {
 	return scan
 }
 
-func (conn TcpConnection) HandleRequest(dataLength int, engine *Engine) {
+func (conn TcpConnection) HandleRequest(scanner *bufio.Scanner, engine *Engine) {
 	// 利用对象池实例化context,避免GC
 	// 会导致内存随着连接的增加而增加
-	contextPool := sync.Pool{New: func() interface{} {
-		return engine.allocateContext()
-	}}
-
-	scan := conn.getScanner(dataLength)
+	ctxPool := engine.ContextPool()
 
 	for {
-		if !scan.Scan() {
-			log.Println("scanner failed:", scan.Err())
+		if !scanner.Scan() {
+			log.Println("scanner failed:", scanner.Err())
 			return
 		}
 		// 通过对象池初始化时，会导致内存缓慢上涨,直到稳定
 		//ctx := &Context{engine: engine}
-		ctx := contextPool.Get().(*Context)
-		ctx.Reset(scan.Bytes(), conn)
+		ctx := ctxPool.Get().(*Context)
+		ctx.Reset(scanner.Bytes(), conn)
 
 		// 执行回调
 		ctx.Run()
 
-		// 回收数据
-		contextPool.Put(ctx)
+		// 回收
+		ctxPool.Put(ctx)
 	}
 
 }

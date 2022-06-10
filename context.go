@@ -44,7 +44,7 @@ func (c *Context) Output(msg []byte) {
 
 func (c *Context) Reset(body []byte, connection IConnection) {
 	c.index = 0
-	//c.ResetKeys()
+	c.ResetKeys()
 	c.request.body = body
 	c.connection = connection
 }
