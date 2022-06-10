@@ -7,12 +7,15 @@ import (
 )
 
 func main() {
-	server := linker.NewGroupServer()
-	server.Register(linker.NewTCPServer([]string{"127.0.0.1:7086"}, linker.WithDebug()))
+	system.SetLimit()
+	
+	server := linker.NewTCPServer([]string{"127.0.0.1:7086"})
 
 	// 主逻辑
 	server.SetOnReceive(func(ctx linker.IContext) {
-		log.Println("receive:", string(ctx.Request().Body()))
+		//log.Println("receive:", string(ctx.Request().Body()))
+
+		// 将内容原封不动返回
 		ctx.Output(ctx.Request().Body())
 	})
 

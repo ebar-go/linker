@@ -3,7 +3,7 @@ package linker
 import (
 	"bufio"
 	"context"
-	"golink/core"
+	"linker/core"
 	"linker/utils/binary"
 	"log"
 	"net"

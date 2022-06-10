@@ -2,7 +2,7 @@ package linker
 
 import (
 	"fmt"
-	"golink/core"
+	"linker/core"
 )
 
 // Request 请求
