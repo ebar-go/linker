@@ -2,7 +2,6 @@ package linker
 
 import (
 	"fmt"
-	"linker/core"
 )
 
 // Request 请求
@@ -17,7 +16,7 @@ func (request Request) Body() []byte {
 
 // Context 上下文
 type Context struct {
-	core.Param
+	Param
 
 	index int8
 

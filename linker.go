@@ -13,7 +13,7 @@ func NewTCPServer(bind []string, opts ...Option) IServer {
 
 	return &TcpServer{
 		Callback: Callback{},
-		engine:   new(Engine),
+		engine:   newEngine(32),
 		conf:     conf,
 	}
 }
