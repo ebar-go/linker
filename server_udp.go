@@ -6,7 +6,7 @@ import (
 )
 
 type UDPServer struct {
-	Callback
+	event
 
 	engine *Engine
 
@@ -14,7 +14,7 @@ type UDPServer struct {
 }
 
 func (s *UDPServer) Start() error {
-	s.engine.Use(s.OnReceive)
+	s.engine.Use(s.OnRequest)
 
 	return s.init()
 }

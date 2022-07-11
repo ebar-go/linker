@@ -1,7 +1,9 @@
 package linker
 
 import (
+	"bufio"
 	uuid "github.com/satori/go.uuid"
+	"linker/utils/binary"
 	"linker/utils/pool"
 	"net"
 	"sync"
@@ -122,4 +124,22 @@ func (conn *Conn) handleRequest(contextPool *sync.Pool, reader func() ([]byte, e
 
 	}
 
+}
+
+func (conn *Conn) newScanner(dataLength int) (scanner *bufio.Scanner) {
+	scanner = bufio.NewScanner(conn.instance)
+	if dataLength == 0 {
+		return
+	}
+	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if !atEOF && len(data) > dataLength {
+			length := int(binary.BigEndian.Int32(data[:dataLength]))
+			if length <= len(data) {
+				return length, data[:length], nil
+			}
+		}
+		return
+	})
+
+	return
 }

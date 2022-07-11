@@ -12,7 +12,7 @@ func main() {
 	server := linker.NewTCPServer([]string{"127.0.0.1:7086"})
 
 	// 主逻辑
-	server.SetOnReceive(func(ctx linker.IContext) {
+	server.SetOnRequest(func(ctx linker.IContext) {
 		//log.Println("receive:", string(ctx.Request().Body()))
 
 		// 将内容原封不动返回

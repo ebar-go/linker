@@ -42,5 +42,5 @@ type IServer interface {
 	Use(handlers ...HandleFunc)                   // 设置中间件
 	SetOnConnect(func(connection IConnection))    // 注册连接时的回调
 	SetOnDisconnect(func(connection IConnection)) // 注册断开连接时的回调
-	SetOnReceive(hookFunc HandleFunc)             // 注册receive回调
+	SetOnRequest(hookFunc HandleFunc)             // 注册receive回调
 }

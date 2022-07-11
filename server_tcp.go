@@ -1,14 +1,12 @@
 package linker
 
 import (
-	"bufio"
-	"linker/utils/binary"
 	"log"
 	"net"
 )
 
 type TcpServer struct {
-	Callback
+	event
 
 	engine *Engine
 
@@ -16,7 +14,7 @@ type TcpServer struct {
 }
 
 func (s *TcpServer) Start() error {
-	s.engine.Use(s.OnReceive)
+	s.engine.Use(s.OnRequest)
 
 	return s.init()
 }
@@ -110,18 +108,7 @@ func (s *TcpServer) handle(conn *net.TCPConn, r int) {
 	// 开启连接事件回调
 	s.OnConnect(connection)
 
-	scanner := bufio.NewScanner(conn)
-	if s.conf.DataLength > 0 {
-		scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
-			if !atEOF && len(data) > s.conf.DataLength {
-				length := int(binary.BigEndian.Int32(data[:s.conf.DataLength]))
-				if length <= len(data) {
-					return length, data[:length], nil
-				}
-			}
-			return
-		})
-	}
+	scanner := connection.newScanner(s.conf.DataLength)
 	// 处理接收数据
 	connection.handleRequest(s.engine.ContextPool(r), func() ([]byte, error) {
 		if !scanner.Scan() {

@@ -48,8 +48,8 @@ func (group *GroupServer) SetOnDisconnect(f func(connection IConnection)) {
 	}
 }
 
-func (group *GroupServer) SetOnReceive(hookFunc HandleFunc) {
+func (group *GroupServer) SetOnRequest(hookFunc HandleFunc) {
 	for _, item := range group.items {
-		item.SetOnReceive(hookFunc)
+		item.SetOnRequest(hookFunc)
 	}
 }

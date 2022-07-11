@@ -21,7 +21,7 @@ func main() {
 	server.Register(linker.NewTCPServer([]string{"127.0.0.1:7086"}, linker.WithDebug()))
 
 	// 主逻辑
-	server.SetOnReceive(func(ctx linker.IContext) {
+	server.SetOnRequest(func(ctx linker.IContext) {
 		log.Println("receive:", string(ctx.Request().Body()))
 		ctx.Output(ctx.Request().Body())
 	})
@@ -38,7 +38,7 @@ func main() {
 ```
 ## 特性
 - 支持创建tcp,websocket服务以及服务组
-- 支持Connect,Disconnect,Receive事件回调
+- 支持Connect,Disconnect,Request事件回调
 - 支持上下文自定义参数
 - 支持中间件
 
