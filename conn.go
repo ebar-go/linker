@@ -116,14 +116,9 @@ func (conn *Conn) handleRequest(contextPool *sync.Pool, reader func() ([]byte, e
 		ctx.Keys = nil
 
 		// 利用协程池控制并发上限，在提高并发的同时，防止协程泄露
-		conn.workerPool.Take()
-		go func() {
-			defer func() {
-				conn.workerPool.Release()
-				contextPool.Put(ctx)
-			}()
-			ctx.Run()
-		}()
+		conn.workerPool.Submit(ctx.Run)
+
+		contextPool.Put(ctx)
 
 	}
 

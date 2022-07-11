@@ -22,3 +22,12 @@ func (pool WorkerPool) Take() {
 func (pool WorkerPool) Release() {
 	pool.task <- struct{}{}
 }
+
+// Submit run some task
+func (pool WorkerPool) Submit(fn func()) {
+	pool.Take()
+	go func() {
+		defer pool.Release()
+		fn()
+	}()
+}
