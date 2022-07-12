@@ -7,14 +7,14 @@ import (
 
 const maxIndex = math.MaxInt8 / 2
 
-type Engine struct {
+type engine struct {
 	mask         int
 	pools        []*sync.Pool
 	handleChains []HandleFunc
 }
 
-func newEngine(n int) *Engine {
-	e := &Engine{mask: n - 1}
+func newengine(n int) *engine {
+	e := &engine{mask: n - 1}
 	for i := 0; i < n; i++ {
 		e.pools = append(e.pools, &sync.Pool{New: func() interface{} {
 			return e.allocateContext()
@@ -23,14 +23,14 @@ func newEngine(n int) *Engine {
 	return e
 }
 
-func (e *Engine) Use(handler ...HandleFunc) {
+func (e *engine) Use(handler ...HandleFunc) {
 	e.handleChains = append(e.handleChains, handler...)
 }
 
-func (e *Engine) allocateContext() *Context {
+func (e *engine) allocateContext() *Context {
 	return &Context{engine: e}
 }
 
-func (e *Engine) ContextPool(r int) *sync.Pool {
+func (e *engine) contextPool(r int) *sync.Pool {
 	return e.pools[r&e.mask]
 }

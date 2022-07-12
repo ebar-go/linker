@@ -20,7 +20,7 @@ type Context struct {
 
 	index int8
 
-	engine *Engine
+	engine *engine
 
 	connection IConnection
 	request    Request

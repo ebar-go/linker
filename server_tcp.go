@@ -6,9 +6,7 @@ import (
 )
 
 type TcpServer struct {
-	event
-
-	engine *Engine
+	components
 
 	conf *Config
 }
@@ -17,10 +15,6 @@ func (s *TcpServer) Start() error {
 	s.engine.Use(s.OnRequest)
 
 	return s.init()
-}
-
-func (s *TcpServer) Use(handlers ...HandleFunc) {
-	s.engine.Use(handlers...)
 }
 
 // accept 一般使用cpu核数作为参数，提高处理能力
@@ -110,7 +104,7 @@ func (s *TcpServer) handle(conn *net.TCPConn, r int) {
 
 	scanner := connection.newScanner(s.conf.DataLength)
 	// 处理接收数据
-	connection.handleRequest(s.engine.ContextPool(r), func() ([]byte, error) {
+	connection.handleRequest(s.engine.contextPool(r), func() ([]byte, error) {
 		if !scanner.Scan() {
 			return nil, scanner.Err()
 		}

@@ -6,9 +6,7 @@ import (
 )
 
 type UDPServer struct {
-	event
-
-	engine *Engine
+	components
 
 	conf *Config
 }
@@ -17,10 +15,6 @@ func (s *UDPServer) Start() error {
 	s.engine.Use(s.OnRequest)
 
 	return s.init()
-}
-
-func (s *UDPServer) Use(handlers ...HandleFunc) {
-	s.engine.Use(handlers...)
 }
 
 // accept 一般使用cpu核数作为参数，提高处理能力
