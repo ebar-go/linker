@@ -30,13 +30,16 @@ func (llb *Buffer) Read(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
+	// 从头部开始读取
 	for b := llb.pop(); b != nil; b = llb.pop() {
+		// 读取数据
 		m := copy(p[n:], b.buf)
 		n += m
-		if m < b.len() {
+		if m < b.len() { // 未读取完
 			b.buf = b.buf[m:]
+			// 将未读取的数据放在头部
 			llb.pushFront(b)
-		} else {
+		} else { // 读取完全之后回收数组
 			bsPool.Put(b.buf)
 		}
 		if n == len(p) {
