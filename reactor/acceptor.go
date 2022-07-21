@@ -15,7 +15,7 @@ type AcceptorLoop struct {
 
 func (loop AcceptorLoop) Run(lis net.Listener) {
 	if listener, ok := lis.(*net.TCPListener); ok {
-		loop.runTCP(listener)
+		go loop.runTCP(listener)
 	}
 }
 

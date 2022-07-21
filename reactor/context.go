@@ -6,6 +6,7 @@ type Context interface {
 	context.Context
 	Run()
 	SetBody(body []byte)
+	Body() []byte
 }
 
 type ContextPool interface {
@@ -24,6 +25,9 @@ func (ctx *selfContext) SetBody(body []byte) {
 	ctx.body = body
 }
 
+func (ctx *selfContext) Body() []byte {
+	return ctx.body
+}
 func (ctx *selfContext) Run() {
 	ctx.engine.handleChains[0](ctx)
 }

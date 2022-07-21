@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	host = flag.String("ip", "127.0.0.1:7086", "server IP")
+	host = flag.String("ip", "127.0.0.1:8086", "server IP")
 )
 
 func main() {
