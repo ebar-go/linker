@@ -1,9 +1,14 @@
-package reactor
+package buffer
 
 import (
+	"fmt"
 	"io"
-	bsPool "linker/utils/pool"
+	"linker/reactor/bytes"
 	"math"
+)
+
+var (
+	bsPool = bytes.Pool{}
 )
 
 type node struct {
@@ -24,22 +29,32 @@ type Buffer struct {
 	bytes int
 }
 
+func (llb *Buffer) Next(n int) (p []byte, err error) {
+	if n <= 0 {
+		return
+	}
+
+	if llb.Len() < n {
+		return p, fmt.Errorf("link buffer next[%d] not enough", n)
+	}
+
+	llb.bytes -= n
+	return
+}
+
 // Read reads data from the Buffer.
 func (llb *Buffer) Read(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
 
-	// 从头部开始读取
 	for b := llb.pop(); b != nil; b = llb.pop() {
-		// 读取数据
 		m := copy(p[n:], b.buf)
 		n += m
-		if m < b.len() { // 未读取完
+		if m < b.len() {
 			b.buf = b.buf[m:]
-			// 将未读取的数据放在头部
 			llb.pushFront(b)
-		} else { // 读取完全之后回收数组
+		} else {
 			bsPool.Put(b.buf)
 		}
 		if n == len(p) {

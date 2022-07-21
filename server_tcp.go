@@ -102,6 +102,7 @@ func (s *TcpServer) handle(conn *net.TCPConn, r int) {
 	// 开启连接事件回调
 	s.OnConnect(connection)
 
+	//connection.handleRequest(s.engine.contextPool(r), connection.read)
 	scanner := connection.newScanner(s.conf.DataLength)
 	// 处理接收数据
 	connection.handleRequest(s.engine.contextPool(r), func() ([]byte, error) {

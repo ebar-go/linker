@@ -1,0 +1,29 @@
+package reactor
+
+import "context"
+
+type Context interface {
+	context.Context
+	Run()
+	SetBody(body []byte)
+}
+
+type ContextPool interface {
+	Get() Context
+	Put(context Context)
+}
+
+type selfContext struct {
+	context.Context
+	engine *Engine
+	conn   Conn
+	body   []byte
+}
+
+func (ctx *selfContext) SetBody(body []byte) {
+	ctx.body = body
+}
+
+func (ctx *selfContext) Run() {
+	ctx.engine.handleChains[0](ctx)
+}

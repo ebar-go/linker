@@ -1,4 +1,4 @@
-package pool
+package bytes
 
 import (
 	"fmt"
@@ -23,23 +23,6 @@ func BenchmarkByteSlice(b *testing.B) {
 		})
 	})
 
-	bp := NewBufferPool()
-	b.Run("Run.N.BufferPool", func(b *testing.B) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			bs := bp.Get()
-			bp.Put(bs)
-		}
-	})
-	b.Run("Run.Parallel.BufferPool", func(b *testing.B) {
-		b.ReportAllocs()
-		b.RunParallel(func(pb *testing.PB) {
-			for pb.Next() {
-				bs := bp.Get()
-				bp.Put(bs)
-			}
-		})
-	})
 }
 
 func TestByteSlice(t *testing.T) {
