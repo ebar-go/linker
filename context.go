@@ -1,64 +1,53 @@
 package linker
 
 import (
+	"context"
 	"fmt"
+	"math"
 )
 
-// Request 请求
-type Request struct {
-	body []byte // 请求内容
+type Context interface {
+	context.Context
+	Run()
+	SetBody(body []byte)
+	Body() []byte
+	Conn() Conn
 }
 
-// Body 获取原始报文
-func (request Request) Body() []byte {
-	return request.body
+type selfContext struct {
+	context.Context
+	engine *Engine
+	conn   Conn
+	body   []byte
+	index  int8
 }
 
-// Context 上下文
-type Context struct {
-	Param
-
-	index int8
-
-	engine *engine
-
-	connection IConnection
-	request    Request
+func (ctx *selfContext) Conn() Conn {
+	return ctx.conn
 }
 
-// Channel 获取会话
-func (c *Context) Channel() IConnection {
-	return c.connection
+func (ctx *selfContext) SetBody(body []byte) {
+	ctx.body = body
 }
 
-// Request 获取请求
-func (c *Context) Request() IRequest {
-	return c.request
+func (ctx *selfContext) Body() []byte {
+	return ctx.body
 }
-
-// Output 输出数据到客户端
-func (c *Context) Output(msg []byte) {
-	c.connection.Push(msg)
-}
-
-func (c *Context) Reset(body []byte, connection IConnection) {
-	c.index = 0
-	c.ResetKeys()
-	c.request.body = body
-	c.connection = connection
-}
-
-func (ctx *Context) Run() {
+func (ctx *selfContext) Run() {
 	ctx.engine.handleChains[0](ctx)
 }
 
-func (ctx *Context) Next() {
+func (ctx *selfContext) Next() {
 	if ctx.index < maxIndex {
 		ctx.index++
 		ctx.engine.handleChains[ctx.index](ctx)
 	}
 }
-func (ctx *Context) Abort() {
+func (ctx *selfContext) Abort() {
 	ctx.index = maxIndex
 	fmt.Println("已被终止...")
 }
+
+const (
+	maxIndex = math.MaxInt8 / 2
+)

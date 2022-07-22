@@ -1,42 +1,43 @@
 package linker
 
-// event 事件
-type event struct {
-	onRequest    HandleFunc
-	onConnect    func(conn IConnection)
-	onDisconnect func(conn IConnection)
+type ConnEvent func(conn Conn)
+
+type EventHandler struct {
+	connect    ConnEvent
+	disconnect ConnEvent
+	request    HandleFunc
 }
 
-func (c *event) SetOnConnect(onConnect func(conn IConnection)) {
-	c.onConnect = onConnect
+func (handler *EventHandler) OnConnect(connect ConnEvent) {
+	handler.connect = connect
 }
 
-func (c *event) SetOnDisconnect(onDisconnect func(conn IConnection)) {
-	c.onDisconnect = onDisconnect
+func (handler *EventHandler) OnDisconnect(disconnect ConnEvent) {
+	handler.disconnect = disconnect
 }
 
-// SetOnRequest 接收请求回调
-func (c *event) SetOnRequest(hookFunc HandleFunc) {
-	c.onRequest = hookFunc
+func (handler *EventHandler) OnRequest(request HandleFunc) {
+	handler.request = request
 }
 
-func (c *event) OnRequest(ctx IContext) {
-	if c.onRequest == nil {
+func (handler EventHandler) HandleRequest(ctx Context) {
+	if handler.request == nil {
 		return
 	}
-	c.onRequest(ctx)
+	handler.request(ctx)
 }
 
-func (c *event) OnConnect(conn IConnection) {
-	if c.onConnect == nil {
+func (handler EventHandler) HandleConnect(conn Conn) {
+	if handler.connect == nil {
 		return
 	}
-	c.onConnect(conn)
+
+	handler.connect(conn)
 }
 
-func (c *event) OnDisconnect(conn IConnection) {
-	if c.onDisconnect == nil {
+func (handler EventHandler) HandleDisconnect(conn Conn) {
+	if handler.disconnect == nil {
 		return
 	}
-	c.onDisconnect(conn)
+	handler.disconnect(conn)
 }

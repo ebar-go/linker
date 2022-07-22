@@ -1,36 +1,17 @@
 package linker
 
-import (
-	"math"
-	"sync"
-)
+import "context"
 
-const maxIndex = math.MaxInt8 / 2
+type HandleFunc func(ctx Context)
 
-type engine struct {
-	mask         int
-	pools        []*sync.Pool
+type Engine struct {
 	handleChains []HandleFunc
 }
 
-func newengine(n int) *engine {
-	e := &engine{mask: n - 1}
-	for i := 0; i < n; i++ {
-		e.pools = append(e.pools, &sync.Pool{New: func() interface{} {
-			return e.allocateContext()
-		}})
-	}
-	return e
+func (e *Engine) allocateContext(conn Conn) Context {
+	return &selfContext{Context: context.Background(), engine: e, conn: conn}
 }
 
-func (e *engine) Use(handler ...HandleFunc) {
+func (e *Engine) Use(handler ...HandleFunc) {
 	e.handleChains = append(e.handleChains, handler...)
-}
-
-func (e *engine) allocateContext() *Context {
-	return &Context{engine: e}
-}
-
-func (e *engine) contextPool(r int) *sync.Pool {
-	return e.pools[r&e.mask]
 }

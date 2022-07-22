@@ -1,40 +1,32 @@
-package epoll
+//go:build linux
+
+package poller
 
 import (
 	"golang.org/x/sys/unix"
 	"syscall"
 )
 
-// Epoll model
-type Epoll interface {
-	// Add register socket connection fd
-	Add(fd int) error
-	// Remove delete socket connection fd
-	Remove(fd int) error
-	// Wait get active socket connection fd
-	Wait() ([]int, error)
-}
-
-// epollImpl implements of Epoll
-type epollImpl struct {
+// Epoll implements of Poller
+type Epoll struct {
 	// 句柄
 	fd int
 	// max event size, default: 100
 	maxEventSize int
 }
 
-func (impl *epollImpl) Add(fd int) error {
+func (impl *Epoll) Add(fd int) error {
 	return unix.EpollCtl(impl.fd,
 		unix.EPOLL_CTL_ADD,
 		fd,
 		&unix.EpollEvent{Events: unix.POLLIN | unix.POLLHUP, Fd: int32(fd)})
 }
 
-func (impl *epollImpl) Remove(fd int) error {
+func (impl *Epoll) Remove(fd int) error {
 	return unix.EpollCtl(impl.fd, syscall.EPOLL_CTL_DEL, fd, nil)
 }
 
-func (impl *epollImpl) Wait() ([]int, error) {
+func (impl *Epoll) Wait() ([]int, error) {
 	events := make([]unix.EpollEvent, impl.maxEventSize)
 	n, err := unix.EpollWait(impl.fd, events, 100)
 	if err != nil {
@@ -51,13 +43,13 @@ func (impl *epollImpl) Wait() ([]int, error) {
 	return fds, nil
 }
 
-func Create() (*epollImpl, error) {
+func CreateEpoll() (*Epoll, error) {
 	fd, err := unix.EpollCreate(1)
 	if err != nil {
 		return nil, err
 	}
 
-	return &epollImpl{
+	return &Epoll{
 		fd:           fd,
 		maxEventSize: 100,
 	}, nil
