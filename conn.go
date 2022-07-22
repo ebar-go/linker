@@ -2,9 +2,9 @@ package linker
 
 import (
 	"bufio"
-	"errors"
 	uuid "github.com/satori/go.uuid"
 	"linker/pkg/buffer"
+	"log"
 	"net"
 	"reflect"
 	"sync"
@@ -56,15 +56,12 @@ func (conn *Connection) read() ([]byte, error) {
 		return nil, conn.scanner.Err()
 	}
 
-	b := conn.scanner.Bytes()
-	if len(b) == 0 {
-		return nil, errors.New("empty data")
-	}
-	return b, nil
+	return conn.scanner.Bytes(), nil
 }
 
 func (conn *Connection) Close() {
 	conn.once.Do(func() {
+		log.Println("connection closed")
 		if conn.closedCallback != nil {
 			conn.closedCallback(conn)
 		}

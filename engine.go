@@ -23,6 +23,11 @@ func (e *Engine) HandleRequest(conn Conn) {
 		return
 	}
 
+	if len(body) == 0 {
+		conn.Close()
+		return
+	}
+
 	ctx := e.allocateContext(conn)
 	ctx.SetBody(body)
 	ctx.Run()

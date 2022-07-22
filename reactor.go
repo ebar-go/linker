@@ -43,8 +43,8 @@ func (reactor *MainReactor) init() {
 		reactor.children[i] = &SubReactor{
 			core:        reactor,
 			connections: make(map[int]Conn, 1024),
-			fd:          make(chan int, 64),       // 同时处理64个连接
-			workerPool:  pool.NewWorkerPool(1000), // 能同时处理1000个请求
+			fd:          make(chan int, 64),      // 同时处理64个连接
+			workerPool:  pool.NewWorkerPool(100), // 能同时处理1000个请求
 		}
 	}
 	reactor.acceptor = core.NewAcceptor(reactor.dispatcher)
@@ -137,6 +137,7 @@ func (reactor *SubReactor) Polling(processor func(conn Conn)) {
 		reactor.workerPool.Submit(func() {
 			processor(conn)
 		})
+		//processor(conn)
 
 	}
 }
