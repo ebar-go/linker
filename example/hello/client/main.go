@@ -33,9 +33,10 @@ func main() {
 	}()
 
 	for {
-		time.Sleep(time.Second)
-		if _, err := c.Write([]byte("hello,world\n")); err != nil {
+		time.Sleep(time.Second * 3)
+		if _, err := c.Write([]byte("hello,world")); err != nil {
 			panic(err)
 		}
+		//time.Sleep(time.Hour)
 	}
 }

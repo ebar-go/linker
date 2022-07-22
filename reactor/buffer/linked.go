@@ -1,7 +1,6 @@
 package buffer
 
 import (
-	"fmt"
 	"io"
 	"linker/reactor/bytes"
 	"math"
@@ -27,19 +26,6 @@ type Buffer struct {
 	tail  *node
 	size  int
 	bytes int
-}
-
-func (llb *Buffer) Next(n int) (p []byte, err error) {
-	if n <= 0 {
-		return
-	}
-
-	if llb.Len() < n {
-		return p, fmt.Errorf("link buffer next[%d] not enough", n)
-	}
-
-	llb.bytes -= n
-	return
 }
 
 // Read reads data from the Buffer.

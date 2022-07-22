@@ -42,6 +42,7 @@ func (conn *Connection) read() ([]byte, error) {
 func (conn *Connection) Close() {
 	_ = conn.loop.Release(conn)
 	_ = conn.instance.Close()
+	conn.inboundBuffer.Reset()
 }
 
 // SocketFD get socket connection fd

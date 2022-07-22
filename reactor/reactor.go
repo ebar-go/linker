@@ -94,6 +94,7 @@ type SubReactor struct {
 	poll Poller
 
 	connections map[int]Conn
+	fd          chan int
 }
 type Poller interface {
 	Add(fd int) error
@@ -122,26 +123,41 @@ func (reactor *SubReactor) Release(conn Conn) error {
 	return nil
 }
 
-func (reactor *SubReactor) Trigger(fn func(conn Conn)) error {
-	fds, err := reactor.poll.Wait()
-	if err != nil {
-		return err
-	}
-	for _, fd := range fds {
-		conn := reactor.getConn(fd)
-		if conn == nil {
-			continue
-		}
-		fn(conn)
-	}
-	return nil
-}
-
 func (reactor *SubReactor) getConn(fd int) Conn {
 	return reactor.connections[fd]
 }
 
+func (reactor *SubReactor) Polling(fn func(conn Conn)) {
+	for {
+		fd, ok := <-reactor.fd
+		if !ok {
+			return
+		}
+		conn := reactor.getConn(fd)
+		fn(conn)
+	}
+}
+
+func (reactor *SubReactor) Offer(fd int) {
+	select {
+	case reactor.fd <- fd:
+	default:
+	}
+
+}
+
 func (reactor *MainReactor) Run() {
+	for _, sub := range reactor.children {
+		go sub.Polling(func(conn Conn) {
+			body, err := conn.read()
+			if err != nil {
+				return
+			}
+			ctx := reactor.engine.allocateContext(conn)
+			ctx.SetBody(body)
+			go ctx.Run()
+		})
+	}
 	for {
 		fds, err := reactor.poll.Wait()
 		if err != nil {
@@ -151,17 +167,7 @@ func (reactor *MainReactor) Run() {
 
 		for _, fd := range fds {
 			sub := reactor.children[fd%len(reactor.children)]
-			conn := sub.getConn(fd)
-			if conn == nil {
-				continue
-			}
-			body, err := conn.read()
-			if err != nil {
-				continue
-			}
-			ctx := reactor.engine.allocateContext(conn)
-			ctx.SetBody(body)
-			go ctx.Run()
+			sub.Offer(fd)
 		}
 
 	}
