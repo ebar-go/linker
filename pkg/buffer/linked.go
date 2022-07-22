@@ -2,7 +2,7 @@ package buffer
 
 import (
 	"io"
-	"linker/reactor/bytes"
+	"linker/pkg/bytes"
 	"math"
 )
 

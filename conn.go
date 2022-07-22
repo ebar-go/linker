@@ -3,6 +3,7 @@ package linker
 import (
 	"bufio"
 	uuid "github.com/satori/go.uuid"
+	"linker/pkg/buffer"
 	"net"
 	"reflect"
 	"sync"
@@ -16,15 +17,15 @@ type Conn interface {
 
 	read() ([]byte, error)
 }
-
 type Connection struct {
-	mu       sync.Mutex
-	loop     *SubReactor
-	instance net.Conn
-	fd       int
-	scanner  *bufio.Scanner
-	uuid     string // 唯一ID
-	once     *sync.Once
+	mu             sync.Mutex
+	instance       net.Conn
+	fd             int
+	scanner        *bufio.Scanner
+	uuid           string // 唯一ID
+	once           *sync.Once
+	linkedBuffer   *buffer.Buffer
+	closedCallback ConnEvent
 }
 
 func (conn *Connection) FD() int {
@@ -58,7 +59,9 @@ func (conn *Connection) read() ([]byte, error) {
 
 func (conn *Connection) Close() {
 	conn.once.Do(func() {
-		_ = conn.loop.Release(conn)
+		if conn.closedCallback != nil {
+			conn.closedCallback(conn)
+		}
 		_ = conn.instance.Close()
 	})
 

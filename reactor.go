@@ -65,7 +65,7 @@ func (reactor *MainReactor) dispatcher(conn net.Conn) {
 		c.Close()
 		return
 	}
-	c.loop = sub
+	c.closedCallback = sub.Release
 }
 
 func (reactor *MainReactor) listenTCP(bind string) (err error) {
@@ -83,23 +83,25 @@ func (reactor *MainReactor) listenTCP(bind string) (err error) {
 	return
 }
 
+func (reactor *MainReactor) handle(conn Conn) {
+	body, err := conn.read()
+	if err != nil {
+		return
+	}
+
+	if len(body) == 0 {
+		conn.Close()
+		return
+	}
+
+	ctx := reactor.Engine.allocateContext(conn)
+	ctx.SetBody(body)
+	go ctx.Run()
+}
+
 func (reactor *MainReactor) run() {
 	for _, sub := range reactor.children {
-		go sub.Polling(func(conn Conn) {
-			body, err := conn.read()
-			if err != nil {
-				return
-			}
-
-			if len(body) == 0 {
-				conn.Close()
-				return
-			}
-
-			ctx := reactor.Engine.allocateContext(conn)
-			ctx.SetBody(body)
-			go ctx.Run()
-		})
+		go sub.Polling(reactor.handle)
 	}
 	for {
 		fds, err := reactor.poll.Wait()
@@ -134,18 +136,17 @@ func (reactor *SubReactor) Register(conn Conn) error {
 	return nil
 }
 
-func (reactor *SubReactor) Release(conn Conn) error {
+func (reactor *SubReactor) Release(conn Conn) {
 	reactor.core.HandleDisconnect(conn)
 	fd := conn.FD()
 	if err := reactor.core.poll.Remove(fd); err != nil {
-		return err
+		return
 	}
 	delete(reactor.connections, fd)
-	return nil
+	return
 }
 
 func (reactor *SubReactor) Polling(fn func(conn Conn)) {
-	log.Printf("sub reactor starting...\n")
 	for {
 		fd, ok := <-reactor.fd
 		if !ok {
