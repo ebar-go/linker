@@ -134,10 +134,10 @@ func (reactor *SubReactor) Polling(processor func(conn Conn)) {
 			continue
 		}
 
-		reactor.workerPool.Submit(func() {
-			processor(conn)
-		})
-		//processor(conn)
+		//reactor.workerPool.Submit(func() {
+		//	processor(conn)
+		//})
+		processor(conn)
 
 	}
 }

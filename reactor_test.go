@@ -92,7 +92,7 @@ func BenchmarkClient(b *testing.B) {
 	}()
 
 	b.ResetTimer()
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 100; i++ {
 		go func() {
 			for {
 				n := rand.Intn(len(connections) - 1)

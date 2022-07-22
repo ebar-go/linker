@@ -3,6 +3,7 @@
 package poller
 
 import (
+	"fmt"
 	"golang.org/x/sys/unix"
 	"syscall"
 )
@@ -38,6 +39,7 @@ func (impl *Epoll) Wait() ([]int, error) {
 		if events[i].Fd == 0 {
 			continue
 		}
+		fmt.Println(events[i].Events)
 		fds[i] = int(events[i].Fd)
 	}
 	return fds, nil
