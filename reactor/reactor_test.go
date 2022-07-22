@@ -3,6 +3,7 @@ package reactor
 import (
 	"log"
 	"testing"
+	"time"
 )
 
 func TestReactor(t *testing.T) {
@@ -20,6 +21,7 @@ func TestReactor(t *testing.T) {
 	})
 	reactor.ev.OnRequest(func(ctx Context) {
 		log.Println("receive:", string(ctx.Body()))
+		ctx.Conn().Push([]byte(time.Now().String()))
 	})
 
 	reactor.Start()

@@ -7,6 +7,7 @@ type Context interface {
 	Run()
 	SetBody(body []byte)
 	Body() []byte
+	Conn() Conn
 }
 
 type ContextPool interface {
@@ -19,6 +20,10 @@ type selfContext struct {
 	engine *Engine
 	conn   Conn
 	body   []byte
+}
+
+func (ctx *selfContext) Conn() Conn {
+	return ctx.conn
 }
 
 func (ctx *selfContext) SetBody(body []byte) {

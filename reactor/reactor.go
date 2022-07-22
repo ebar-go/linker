@@ -39,6 +39,7 @@ func (reactor *MainReactor) init() {
 			ev:          reactor.ev,
 			poll:        reactor.poll,
 			connections: make(map[int]Conn, 1024),
+			fd:          make(chan int, 64),
 		}
 	}
 	reactor.acceptorLoop.Sndbuf = 4096
@@ -51,7 +52,9 @@ func (reactor *MainReactor) dispatcher(conn net.Conn) {
 	sub := reactor.children[c.FD()%len(reactor.children)]
 	if err := sub.Register(c); err != nil {
 		c.Close()
+		return
 	}
+	c.loop = sub
 }
 
 func (reactor *MainReactor) Listen(protocol string, bind string) (err error) {
@@ -123,17 +126,16 @@ func (reactor *SubReactor) Release(conn Conn) error {
 	return nil
 }
 
-func (reactor *SubReactor) getConn(fd int) Conn {
-	return reactor.connections[fd]
-}
-
 func (reactor *SubReactor) Polling(fn func(conn Conn)) {
 	for {
 		fd, ok := <-reactor.fd
 		if !ok {
 			return
 		}
-		conn := reactor.getConn(fd)
+		conn, exist := reactor.connections[fd]
+		if !exist {
+			return
+		}
 		fn(conn)
 	}
 }
@@ -153,6 +155,12 @@ func (reactor *MainReactor) Run() {
 			if err != nil {
 				return
 			}
+
+			if len(body) == 0 {
+				conn.Close()
+				return
+			}
+
 			ctx := reactor.engine.allocateContext(conn)
 			ctx.SetBody(body)
 			go ctx.Run()

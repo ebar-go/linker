@@ -2,7 +2,6 @@ package reactor
 
 import (
 	"bufio"
-	"linker/reactor/buffer"
 	"net"
 	"reflect"
 	"sync"
@@ -11,21 +10,24 @@ import (
 type Conn interface {
 	FD() int
 	Close()
-
 	read() ([]byte, error)
+	Push(msg []byte)
 }
 
 type Connection struct {
-	mu            sync.Mutex
-	loop          *SubReactor
-	instance      net.Conn
-	inboundBuffer *buffer.Buffer
-	fd            int
-	scanner       *bufio.Scanner
+	mu       sync.Mutex
+	loop     *SubReactor
+	instance net.Conn
+	fd       int
+	scanner  *bufio.Scanner
 }
 
 func (conn *Connection) FD() int {
 	return conn.fd
+}
+
+func (conn *Connection) Push(msg []byte) {
+	conn.instance.Write(msg)
 }
 
 func newConn(conn net.Conn) *Connection {
@@ -42,7 +44,6 @@ func (conn *Connection) read() ([]byte, error) {
 func (conn *Connection) Close() {
 	_ = conn.loop.Release(conn)
 	_ = conn.instance.Close()
-	conn.inboundBuffer.Reset()
 }
 
 // SocketFD get socket connection fd
