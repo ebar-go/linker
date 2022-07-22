@@ -15,3 +15,19 @@ func (e *Engine) allocateContext(conn Conn) Context {
 func (e *Engine) Use(handler ...HandleFunc) {
 	e.handleChains = append(e.handleChains, handler...)
 }
+
+func (e *Engine) HandleRequest(conn Conn) {
+	body, err := conn.read()
+	if err != nil {
+		return
+	}
+
+	if len(body) == 0 {
+		conn.Close()
+		return
+	}
+
+	ctx := e.allocateContext(conn)
+	ctx.SetBody(body)
+	go ctx.Run()
+}

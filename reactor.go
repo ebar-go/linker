@@ -83,25 +83,9 @@ func (reactor *MainReactor) listenTCP(bind string) (err error) {
 	return
 }
 
-func (reactor *MainReactor) handle(conn Conn) {
-	body, err := conn.read()
-	if err != nil {
-		return
-	}
-
-	if len(body) == 0 {
-		conn.Close()
-		return
-	}
-
-	ctx := reactor.Engine.allocateContext(conn)
-	ctx.SetBody(body)
-	go ctx.Run()
-}
-
 func (reactor *MainReactor) run() {
 	for _, sub := range reactor.children {
-		go sub.Polling(reactor.handle)
+		go sub.Polling(reactor.Engine.HandleRequest)
 	}
 	for {
 		fds, err := reactor.poll.Wait()
