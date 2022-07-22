@@ -19,15 +19,11 @@ func (e *Engine) Use(handler ...HandleFunc) {
 func (e *Engine) HandleRequest(conn Conn) {
 	body, err := conn.read()
 	if err != nil {
-		return
-	}
-
-	if len(body) == 0 {
 		conn.Close()
 		return
 	}
 
 	ctx := e.allocateContext(conn)
 	ctx.SetBody(body)
-	go ctx.Run()
+	ctx.Run()
 }

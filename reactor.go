@@ -3,6 +3,7 @@ package linker
 import (
 	"linker/core"
 	"linker/pkg/poller"
+	"linker/pkg/pool"
 	"log"
 	"net"
 )
@@ -14,16 +15,6 @@ type MainReactor struct {
 	poll     poller.Poller
 	acceptor *core.Acceptor
 	children []*SubReactor
-}
-
-func NewReactor() *MainReactor {
-	reactor := &MainReactor{
-		EventHandler: new(EventHandler),
-		Engine:       new(Engine),
-		children:     make([]*SubReactor, 16),
-	}
-	reactor.init()
-	return reactor
 }
 
 func (reactor *MainReactor) Listen(protocol string, bind string) (err error) {
@@ -48,11 +39,12 @@ func (reactor *MainReactor) Listen(protocol string, bind string) (err error) {
 
 func (reactor *MainReactor) init() {
 	reactor.poll, _ = poller.CreateEpoll()
-	for i := 0; i < 16; i++ {
+	for i := range reactor.children {
 		reactor.children[i] = &SubReactor{
 			core:        reactor,
 			connections: make(map[int]Conn, 1024),
-			fd:          make(chan int, 64),
+			fd:          make(chan int, 64),       // 同时处理64个连接
+			workerPool:  pool.NewWorkerPool(1000), // 能同时处理1000个请求
 		}
 	}
 	reactor.acceptor = core.NewAcceptor(reactor.dispatcher)
@@ -107,6 +99,7 @@ type SubReactor struct {
 
 	connections map[int]Conn
 	fd          chan int
+	workerPool  *pool.WorkerPool
 }
 
 func (reactor *SubReactor) Register(conn Conn) error {
@@ -130,7 +123,7 @@ func (reactor *SubReactor) Release(conn Conn) {
 	return
 }
 
-func (reactor *SubReactor) Polling(fn func(conn Conn)) {
+func (reactor *SubReactor) Polling(processor func(conn Conn)) {
 	for {
 		fd, ok := <-reactor.fd
 		if !ok {
@@ -138,9 +131,13 @@ func (reactor *SubReactor) Polling(fn func(conn Conn)) {
 		}
 		conn, exist := reactor.connections[fd]
 		if !exist {
-			return
+			continue
 		}
-		fn(conn)
+
+		reactor.workerPool.Submit(func() {
+			processor(conn)
+		})
+
 	}
 }
 

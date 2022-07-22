@@ -2,6 +2,7 @@ package linker
 
 import (
 	"bufio"
+	"errors"
 	uuid "github.com/satori/go.uuid"
 	"linker/pkg/buffer"
 	"net"
@@ -54,7 +55,12 @@ func (conn *Connection) read() ([]byte, error) {
 	if !conn.scanner.Scan() {
 		return nil, conn.scanner.Err()
 	}
-	return conn.scanner.Bytes(), nil
+
+	b := conn.scanner.Bytes()
+	if len(b) == 0 {
+		return nil, errors.New("empty data")
+	}
+	return b, nil
 }
 
 func (conn *Connection) Close() {
