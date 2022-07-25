@@ -6,6 +6,7 @@ import (
 	"linker/pkg/pool"
 	"log"
 	"net"
+	"sync"
 )
 
 type MainReactor struct {
@@ -80,23 +81,35 @@ func (reactor *MainReactor) run() {
 		go sub.Polling(reactor.Engine.HandleRequest)
 	}
 	for {
-		fds, err := reactor.poll.Wait()
+		read, closed, err := reactor.poll.Wait()
 		if err != nil {
 			log.Println("unable to get active socket connection from epoll:", err)
 			continue
 		}
 
-		for _, fd := range fds {
-			sub := reactor.children[fd%len(reactor.children)]
-			sub.Offer(fd)
+		// 处理已关闭的链接
+		for _, fd := range closed {
+			if conn := reactor.chooseSubReactor(fd).GetConn(fd); conn != nil {
+				conn.Close()
+			}
+		}
+
+		// 处理待读取数据的链接
+		for _, fd := range read {
+			reactor.chooseSubReactor(fd).Offer(fd)
 		}
 
 	}
 }
 
+func (reactor *MainReactor) chooseSubReactor(fd int) *SubReactor {
+	return reactor.children[fd%len(reactor.children)]
+}
+
 type SubReactor struct {
 	core *MainReactor
 
+	rmu         sync.RWMutex
 	connections map[int]Conn
 	fd          chan int
 	workerPool  *pool.WorkerPool
@@ -108,9 +121,18 @@ func (reactor *SubReactor) Register(conn Conn) error {
 		return err
 	}
 
+	reactor.rmu.Lock()
 	reactor.connections[fd] = conn
 	reactor.core.HandleConnect(conn)
+	reactor.rmu.Unlock()
 	return nil
+}
+
+func (reactor *SubReactor) GetConn(fd int) Conn {
+	reactor.rmu.RLock()
+	conn := reactor.connections[fd]
+	reactor.rmu.RUnlock()
+	return conn
 }
 
 func (reactor *SubReactor) Release(conn Conn) {
@@ -129,8 +151,8 @@ func (reactor *SubReactor) Polling(processor func(conn Conn)) {
 		if !ok {
 			return
 		}
-		conn, exist := reactor.connections[fd]
-		if !exist {
+		conn := reactor.GetConn(fd)
+		if conn == nil {
 			continue
 		}
 

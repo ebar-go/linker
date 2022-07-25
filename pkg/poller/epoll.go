@@ -3,20 +3,23 @@
 package poller
 
 import (
-	"fmt"
 	"golang.org/x/sys/unix"
 	"syscall"
 )
 
 // Epoll implements of Poller
 type Epoll struct {
-	// 句柄
+	// 注册的事件的文件描述符
 	fd int
 	// max event size, default: 100
 	maxEventSize int
 }
 
 func (impl *Epoll) Add(fd int) error {
+	// 向 epoll 实例注册文件描述符对应的事件
+	// POLLIN 表示对应的文件描述字可以读
+	// POLLHUP 表示对应的文件描述字被挂起
+	// 只有当链接有数据可以读或者连接被关闭时，wait才会唤醒
 	return unix.EpollCtl(impl.fd,
 		unix.EPOLL_CTL_ADD,
 		fd,
@@ -24,25 +27,31 @@ func (impl *Epoll) Add(fd int) error {
 }
 
 func (impl *Epoll) Remove(fd int) error {
+	// 向 epoll 实例删除文件描述符对应的事件
 	return unix.EpollCtl(impl.fd, syscall.EPOLL_CTL_DEL, fd, nil)
 }
 
-func (impl *Epoll) Wait() ([]int, error) {
+func (impl *Epoll) Wait() (read []int, closed []int, err error) {
 	events := make([]unix.EpollEvent, impl.maxEventSize)
 	n, err := unix.EpollWait(impl.fd, events, 100)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	fds := make([]int, n)
 	for i := 0; i < n; i++ {
 		if events[i].Fd == 0 {
 			continue
 		}
-		fmt.Println(events[i].Events)
-		fds[i] = int(events[i].Fd)
+		
+		if events[i].Events == unix.POLLIN {
+			read = append(read, int(events[i].Fd))
+		} else if events[i].Events == unix.POLLHUP {
+			closed = append(read, int(events[i].Fd))
+		}
+
 	}
-	return fds, nil
+
+	return
 }
 
 func CreateEpoll() (*Epoll, error) {
