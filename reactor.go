@@ -18,7 +18,7 @@ type MainReactor struct {
 	children []*SubReactor
 }
 
-func (reactor *MainReactor) Listen(protocol string, bind string) (err error) {
+func (reactor *MainReactor) Run(protocol string, bind string) (err error) {
 	log.Printf("%s server listen: %s\n", protocol, bind)
 	switch protocol {
 	case TCP:

@@ -43,9 +43,42 @@ func TestReactor(t *testing.T) {
 		ctx.Conn().Push([]byte(time.Now().String()))
 	})
 
-	if err := reactor.Listen("tcp", addr); err != nil {
+	if err := reactor.Run("tcp", addr); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestTCPServer(t *testing.T) {
+	var connected int
+	go func() {
+		for {
+			time.Sleep(time.Second * 5)
+
+			fmt.Printf("current connection:%d, memory usage: %.3f MB\n", connected, float64(system.GetMem())/1024/1024)
+		}
+
+	}()
+	system.SetLimit()
+	reactor := NewTCPServer()
+
+	reactor.OnConnect(func(conn Conn) {
+		connected++
+		log.Println("connected")
+	})
+
+	reactor.OnDisconnect(func(conn Conn) {
+		connected--
+		log.Println("disconnected", conn.FD())
+	})
+	reactor.OnRequest(func(ctx Context) {
+		//log.Println("receive:", string(ctx.Body()))
+		ctx.Conn().Push([]byte(time.Now().String()))
+	})
+
+	if err := reactor.Run("tcp", addr); err != nil {
+		t.Fatal(err)
+	}
+	select {}
 }
 
 func TestClient(t *testing.T) {
@@ -75,9 +108,10 @@ func TestClient(t *testing.T) {
 }
 
 func BenchmarkClient(b *testing.B) {
+	system.SetLimit()
 	opsRate := metrics.NewRegisteredTimer("ops", nil)
 
-	n := 5000
+	n := 20000
 	connections := make([]net.Conn, 0, 1024)
 	for i := 0; i < n; i++ {
 		c, err := net.DialTimeout("tcp", addr, 10*time.Second)
