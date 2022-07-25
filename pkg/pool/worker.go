@@ -31,3 +31,32 @@ func (pool WorkerPool) Submit(fn func()) {
 		fn()
 	}()
 }
+
+type GoroutinePool struct {
+	work chan func()
+}
+
+func NewGoroutinePool(size int) *GoroutinePool {
+	gp := &GoroutinePool{
+		work: make(chan func(), size),
+	}
+
+	for i := 0; i < size; i++ {
+		go gp.run()
+	}
+	return gp
+}
+func (p *GoroutinePool) Schedule(task func()) {
+	select {
+	case p.work <- task:
+	default:
+	}
+}
+
+func (p *GoroutinePool) run() {
+	var task func()
+	for {
+		task = <-p.work
+		task()
+	}
+}

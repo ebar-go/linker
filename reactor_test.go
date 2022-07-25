@@ -7,6 +7,8 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"testing"
 	"time"
@@ -16,7 +18,11 @@ var (
 	addr = "0.0.0.0:8086"
 )
 
+func startPprof() {
+	http.ListenAndServe("0.0.0.0:6060", nil)
+}
 func TestReactor(t *testing.T) {
+	go startPprof()
 	var connected int
 	go func() {
 		for {
@@ -40,7 +46,7 @@ func TestReactor(t *testing.T) {
 	})
 	reactor.OnRequest(func(ctx Context) {
 		//log.Println("receive:", string(ctx.Body()))
-		ctx.Conn().Push([]byte(time.Now().String()))
+		ctx.Conn().Push([]byte("hello"))
 	})
 
 	if err := reactor.Run("tcp", addr); err != nil {
@@ -111,7 +117,7 @@ func BenchmarkClient(b *testing.B) {
 	system.SetLimit()
 	opsRate := metrics.NewRegisteredTimer("ops", nil)
 
-	n := 20000
+	n := 10000
 	connections := make([]net.Conn, 0, 1024)
 	for i := 0; i < n; i++ {
 		c, err := net.DialTimeout("tcp", addr, 10*time.Second)
@@ -119,6 +125,15 @@ func BenchmarkClient(b *testing.B) {
 			i--
 		}
 		connections = append(connections, c)
+		go func() {
+			for {
+				bytes := make([]byte, 100)
+				if _, err := c.Read(bytes); err != nil {
+					panic(err)
+				}
+			}
+
+		}()
 	}
 
 	go func() {

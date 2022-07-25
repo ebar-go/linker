@@ -27,6 +27,7 @@ type Connection struct {
 	once           *sync.Once
 	linkedBuffer   *buffer.Buffer
 	closedCallback ConnEvent
+	buffer         []byte
 }
 
 func (conn *Connection) FD() int {
@@ -38,12 +39,15 @@ func (conn *Connection) Push(msg []byte) {
 }
 
 func newConn(conn net.Conn) *Connection {
-	return &Connection{instance: conn,
+	c := &Connection{instance: conn,
 		uuid:    uuid.NewV4().String(),
 		fd:      poller.SocketFD(conn),
 		once:    new(sync.Once),
 		scanner: bufio.NewScanner(conn),
+		buffer:  make([]byte, 512),
 	}
+	c.scanner.Buffer(c.buffer, 512)
+	return c
 }
 
 // UUID 返回连接的唯一ID

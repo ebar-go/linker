@@ -16,19 +16,17 @@ func (e *Engine) Use(handler ...HandleFunc) {
 	e.handleChains = append(e.handleChains, handler...)
 }
 
-func (e *Engine) HandleRequest(conn Conn) {
+func (e *Engine) buildContext(conn Conn) Context {
 	body, err := conn.read()
 	if err != nil {
-		conn.Close()
-		return
+		return nil
 	}
 
 	if len(body) == 0 {
-		conn.Close()
-		return
+		return nil
 	}
 
 	ctx := e.allocateContext(conn)
 	ctx.SetBody(body)
-	ctx.Run()
+	return ctx
 }

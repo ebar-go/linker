@@ -21,7 +21,7 @@ func NewReactor() EventLoop {
 	reactor := &MainReactor{
 		EventHandler: new(EventHandler),
 		Engine:       new(Engine),
-		children:     make([]*SubReactor, 16),
+		children:     make([]*SubReactor, 32),
 	}
 	reactor.init()
 	return reactor

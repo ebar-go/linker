@@ -78,20 +78,13 @@ func (reactor *MainReactor) listenTCP(bind string) (err error) {
 
 func (reactor *MainReactor) run() {
 	for _, sub := range reactor.children {
-		go sub.Polling(reactor.Engine.HandleRequest)
+		go sub.Polling(reactor.Engine.buildContext)
 	}
 	for {
-		read, closed, err := reactor.poll.Wait()
+		read, err := reactor.poll.Wait()
 		if err != nil {
 			log.Println("unable to get active socket connection from epoll:", err)
 			continue
-		}
-
-		// 处理已关闭的链接
-		for _, fd := range closed {
-			if conn := reactor.chooseSubReactor(fd).GetConn(fd); conn != nil {
-				conn.Close()
-			}
 		}
 
 		// 处理待读取数据的链接
@@ -145,7 +138,9 @@ func (reactor *SubReactor) Release(conn Conn) {
 	return
 }
 
-func (reactor *SubReactor) Polling(processor func(conn Conn)) {
+func (reactor *SubReactor) Polling(processor func(conn Conn) Context) {
+	goPool := pool.NewGoroutinePool(100)
+
 	for {
 		fd, ok := <-reactor.fd
 		if !ok {
@@ -156,11 +151,14 @@ func (reactor *SubReactor) Polling(processor func(conn Conn)) {
 			continue
 		}
 
-		//reactor.workerPool.Submit(func() {
-		//	processor(conn)
-		//})
-		processor(conn)
-
+		ctx := processor(conn)
+		if ctx == nil {
+			conn.Close()
+			continue
+		}
+		// 读取数据不能放在协程里执行
+		//reactor.workerPool.Submit(ctx.Run)
+		goPool.Schedule(ctx.Run)
 	}
 }
 

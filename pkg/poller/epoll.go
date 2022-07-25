@@ -31,27 +31,22 @@ func (impl *Epoll) Remove(fd int) error {
 	return unix.EpollCtl(impl.fd, syscall.EPOLL_CTL_DEL, fd, nil)
 }
 
-func (impl *Epoll) Wait() (read []int, closed []int, err error) {
+func (impl *Epoll) Wait() ([]int, error) {
 	events := make([]unix.EpollEvent, impl.maxEventSize)
 	n, err := unix.EpollWait(impl.fd, events, 100)
 	if err != nil {
-		return
+		return nil, err
 	}
 
+	read := make([]int, 0, impl.maxEventSize)
 	for i := 0; i < n; i++ {
 		if events[i].Fd == 0 {
 			continue
 		}
-		
-		if events[i].Events == unix.POLLIN {
-			read = append(read, int(events[i].Fd))
-		} else if events[i].Events == unix.POLLHUP {
-			closed = append(read, int(events[i].Fd))
-		}
-
+		read = append(read, int(events[i].Fd))
 	}
 
-	return
+	return read, nil
 }
 
 func CreateEpoll() (*Epoll, error) {
