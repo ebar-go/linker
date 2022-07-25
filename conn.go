@@ -5,7 +5,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"linker/pkg/buffer"
 	"linker/pkg/poller"
-	"log"
 	"net"
 	"sync"
 )
@@ -65,7 +64,6 @@ func (conn *Connection) read() ([]byte, error) {
 
 func (conn *Connection) Close() {
 	conn.once.Do(func() {
-		log.Println("connection closed")
 		if conn.closedCallback != nil {
 			conn.closedCallback(conn)
 		}

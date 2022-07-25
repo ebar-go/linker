@@ -44,8 +44,8 @@ func (reactor *MainReactor) init() {
 		reactor.children[i] = &SubReactor{
 			core:        reactor,
 			connections: make(map[int]Conn, 1024),
-			fd:          make(chan int, 64),      // 同时处理64个连接
-			workerPool:  pool.NewWorkerPool(100), // 能同时处理1000个请求
+			fd:          make(chan int, 64),         // 同时处理64个连接
+			workerPool:  pool.NewGoroutinePool(100), // 能同时处理1000个请求
 		}
 	}
 	reactor.acceptor = core.NewAcceptor(reactor.dispatcher)
@@ -105,7 +105,7 @@ type SubReactor struct {
 	rmu         sync.RWMutex
 	connections map[int]Conn
 	fd          chan int
-	workerPool  *pool.WorkerPool
+	workerPool  *pool.GoroutinePool
 }
 
 func (reactor *SubReactor) Register(conn Conn) error {
@@ -138,27 +138,25 @@ func (reactor *SubReactor) Release(conn Conn) {
 	return
 }
 
-func (reactor *SubReactor) Polling(processor func(conn Conn) Context) {
-	goPool := pool.NewGoroutinePool(100)
-
+func (reactor *SubReactor) Polling(processor func(conn Conn) (Context, error)) {
+	var (
+		ctx Context
+		err error
+	)
 	for {
-		fd, ok := <-reactor.fd
-		if !ok {
-			return
-		}
+		fd := <-reactor.fd
 		conn := reactor.GetConn(fd)
 		if conn == nil {
 			continue
 		}
 
-		ctx := processor(conn)
-		if ctx == nil {
+		ctx, err = processor(conn)
+		if err != nil {
 			conn.Close()
 			continue
 		}
 		// 读取数据不能放在协程里执行
-		//reactor.workerPool.Submit(ctx.Run)
-		goPool.Schedule(ctx.Run)
+		reactor.workerPool.Schedule(ctx.Run)
 	}
 }
 
