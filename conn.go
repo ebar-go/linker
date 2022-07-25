@@ -4,9 +4,9 @@ import (
 	"bufio"
 	uuid "github.com/satori/go.uuid"
 	"linker/pkg/buffer"
+	"linker/pkg/poller"
 	"log"
 	"net"
-	"reflect"
 	"sync"
 )
 
@@ -40,7 +40,7 @@ func (conn *Connection) Push(msg []byte) {
 func newConn(conn net.Conn) *Connection {
 	return &Connection{instance: conn,
 		uuid:    uuid.NewV4().String(),
-		fd:      SocketFD(conn),
+		fd:      poller.SocketFD(conn),
 		once:    new(sync.Once),
 		scanner: bufio.NewScanner(conn),
 	}
@@ -68,12 +68,4 @@ func (conn *Connection) Close() {
 		_ = conn.instance.Close()
 	})
 
-}
-
-// SocketFD get socket connection fd
-func SocketFD(conn net.Conn) int {
-	tcpConn := reflect.Indirect(reflect.ValueOf(conn)).FieldByName("conn")
-	fdVal := tcpConn.FieldByName("fd")
-	pfdVal := reflect.Indirect(fdVal).FieldByName("pfd")
-	return int(pfdVal.FieldByName("Sysfd").Int())
 }
