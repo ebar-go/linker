@@ -1,7 +1,5 @@
 package linker
 
-import "linker/config"
-
 const (
 	TCP = "tcp"
 	WS  = "websocket"
@@ -25,14 +23,4 @@ func NewReactor() EventLoop {
 	}
 	reactor.init()
 	return reactor
-}
-
-func NewTCPServer() *TcpServer {
-	conf := config.Default()
-
-	return &TcpServer{
-		EventHandler: new(EventHandler),
-		engine:       new(Engine),
-		conf:         conf,
-	}
 }
