@@ -3,7 +3,6 @@ package linker
 import (
 	"bufio"
 	uuid "github.com/satori/go.uuid"
-	"linker/pkg/buffer"
 	"linker/pkg/poller"
 	"net"
 	"sync"
@@ -24,7 +23,6 @@ type Connection struct {
 	scanner        *bufio.Scanner
 	uuid           string // 唯一ID
 	once           *sync.Once
-	linkedBuffer   *buffer.Buffer
 	closedCallback ConnEvent
 	buffer         []byte
 }

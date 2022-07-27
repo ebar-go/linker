@@ -3,6 +3,7 @@ package linker
 import (
 	"fmt"
 	"github.com/rcrowley/go-metrics"
+	"io"
 	"linker/pkg/system"
 	"log"
 	"math/rand"
@@ -32,7 +33,7 @@ func TestReactor(t *testing.T) {
 		}
 
 	}()
-	system.SetLimit()
+	//system.SetLimit()
 	reactor := NewReactor()
 
 	reactor.OnConnect(func(conn Conn) {
@@ -45,7 +46,7 @@ func TestReactor(t *testing.T) {
 		log.Println("disconnected", conn.FD())
 	})
 	reactor.OnRequest(func(ctx Context) {
-		//log.Println("receive:", string(ctx.Body()))
+		log.Println("receive:", string(ctx.Body()))
 		ctx.Conn().Push([]byte("hello"))
 	})
 
@@ -63,20 +64,25 @@ func TestClient(t *testing.T) {
 	go func() {
 		for {
 			bytes := make([]byte, 100)
-			if _, err := c.Read(bytes); err != nil {
+			n, err := c.Read(bytes)
+			if err != nil {
 				panic(err)
+
+			}
+			if n > 0 {
+				log.Println("receive:", string(bytes[:n]))
 			}
 
-			log.Println("receive:", string(bytes))
 		}
 
 	}()
 
-	for {
-		time.Sleep(time.Second * 1)
+	for i := 0; i < 10; i++ {
+
 		if _, err := c.Write([]byte("hello,world\n")); err != nil {
 			panic(err)
 		}
+		time.Sleep(time.Second * 1)
 	}
 }
 
@@ -96,7 +102,11 @@ func BenchmarkClient(b *testing.B) {
 			for {
 				bytes := make([]byte, 100)
 				if _, err := c.Read(bytes); err != nil {
-					panic(err)
+					if err != io.EOF {
+						log.Println(err)
+						return
+					}
+
 				}
 			}
 
@@ -116,7 +126,7 @@ func BenchmarkClient(b *testing.B) {
 				before := time.Now()
 				if _, err := c.Write([]byte("hello\n")); err != nil {
 					_ = c.Close()
-					//log.Println(err)
+					log.Println(err)
 				} else {
 					opsRate.Update(time.Now().Sub(before))
 				}
