@@ -2,19 +2,11 @@ package linker
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"math"
 )
 
-type Context interface {
-	context.Context
-	Run()
-	SetBody(body []byte)
-	Body() []byte
-	Conn() Conn
-}
-
-type selfContext struct {
+type Context struct {
 	context.Context
 	engine *Engine
 	conn   Conn
@@ -22,30 +14,27 @@ type selfContext struct {
 	index  int8
 }
 
-func (ctx *selfContext) Conn() Conn {
+func (ctx *Context) Conn() Conn {
 	return ctx.conn
 }
 
-func (ctx *selfContext) SetBody(body []byte) {
-	ctx.body = body
-}
-
-func (ctx *selfContext) Body() []byte {
+func (ctx *Context) Body() []byte {
 	return ctx.body
 }
-func (ctx *selfContext) Run() {
+func (ctx *Context) Run() {
 	ctx.engine.handleChains[0](ctx)
+	ctx.engine.releaseContext(ctx)
 }
 
-func (ctx *selfContext) Next() {
+func (ctx *Context) Next() {
 	if ctx.index < maxIndex {
 		ctx.index++
 		ctx.engine.handleChains[ctx.index](ctx)
 	}
 }
-func (ctx *selfContext) Abort() {
+func (ctx *Context) Abort() {
 	ctx.index = maxIndex
-	fmt.Println("已被终止...")
+	log.Println("已被终止...")
 }
 
 const (

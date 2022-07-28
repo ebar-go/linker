@@ -3,24 +3,42 @@ package linker
 import (
 	"context"
 	"errors"
+	"sync"
 )
 
-type HandleFunc func(ctx Context)
+type HandleFunc func(ctx *Context)
 
 type Engine struct {
 	handleChains []HandleFunc
+	contextPools []*sync.Pool
+	mask         int
 }
 
-func (e *Engine) allocateContext(conn Conn) Context {
-	return &selfContext{Context: context.Background(), engine: e, conn: conn}
+func newEngine() *Engine {
+	engine := &Engine{
+		mask: 32,
+	}
+	engine.init()
+	return engine
+}
+
+func (e *Engine) allocateContext(conn Conn, body []byte) *Context {
+	return &Context{engine: e, conn: conn, body: body}
 }
 
 func (e *Engine) Use(handler ...HandleFunc) {
 	e.handleChains = append(e.handleChains, handler...)
 }
 
-func (e *Engine) buildContext(conn Conn) (Context, error) {
-	// TODO 使用linkedBuffer优化bytes拷贝
+func (e *Engine) init() {
+	for i := 0; i < e.mask; i++ {
+		e.contextPools = append(e.contextPools, &sync.Pool{New: func() interface{} {
+			return &Context{engine: e}
+		}})
+	}
+}
+
+func (e *Engine) buildContext(conn Conn) (*Context, error) {
 	body, err := conn.read()
 	if err != nil {
 		return nil, err
@@ -30,7 +48,18 @@ func (e *Engine) buildContext(conn Conn) (Context, error) {
 		return nil, errors.New("empty data")
 	}
 
-	ctx := e.allocateContext(conn)
-	ctx.SetBody(body)
+	ctx := e.withPool(conn.FD()).Get().(*Context)
+	ctx.body = body
+	ctx.index = 0
+	ctx.conn = conn
+	ctx.Context = context.Background()
 	return ctx, nil
+}
+
+func (e *Engine) releaseContext(ctx *Context) {
+	e.withPool(ctx.Conn().FD()).Put(ctx)
+}
+
+func (e *Engine) withPool(key int) *sync.Pool {
+	return e.contextPools[key&(e.mask-1)]
 }

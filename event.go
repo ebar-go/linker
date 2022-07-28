@@ -20,7 +20,7 @@ func (handler *EventHandler) OnRequest(request HandleFunc) {
 	handler.request = request
 }
 
-func (handler EventHandler) HandleRequest(ctx Context) {
+func (handler EventHandler) HandleRequest(ctx *Context) {
 	if handler.request == nil {
 		return
 	}

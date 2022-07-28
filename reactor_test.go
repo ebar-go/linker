@@ -45,7 +45,7 @@ func TestReactor(t *testing.T) {
 		connected--
 		log.Println("disconnected", conn.FD())
 	})
-	reactor.OnRequest(func(ctx Context) {
+	reactor.OnRequest(func(ctx *Context) {
 		log.Println("receive:", string(ctx.Body()))
 		ctx.Conn().Push([]byte("hello"))
 	})

@@ -45,7 +45,7 @@ func (reactor *MainReactor) init() {
 			core:        reactor,
 			connections: make(map[int]Conn, 1024),
 			fd:          make(chan int, 64),         // 同时处理64个连接
-			workerPool:  pool.NewGoroutinePool(100), // 能同时处理1000个请求
+			workerPool:  pool.NewGoroutinePool(100), // 能同时处理100个请求
 		}
 	}
 	reactor.acceptor = core.NewAcceptor(reactor.dispatcher)
@@ -138,9 +138,9 @@ func (reactor *SubReactor) Release(conn Conn) {
 	return
 }
 
-func (reactor *SubReactor) Polling(processor func(conn Conn) (Context, error)) {
+func (reactor *SubReactor) Polling(contextBuilder func(conn Conn) (*Context, error)) {
 	var (
-		ctx Context
+		ctx *Context
 		err error
 	)
 	for {
@@ -150,7 +150,7 @@ func (reactor *SubReactor) Polling(processor func(conn Conn) (Context, error)) {
 			continue
 		}
 
-		ctx, err = processor(conn)
+		ctx, err = contextBuilder(conn)
 		if err != nil {
 			conn.Close()
 			continue

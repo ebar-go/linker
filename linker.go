@@ -18,7 +18,7 @@ type EventLoop interface {
 func NewReactor() EventLoop {
 	reactor := &MainReactor{
 		EventHandler: new(EventHandler),
-		Engine:       new(Engine),
+		Engine:       newEngine(),
 		children:     make([]*SubReactor, 32),
 	}
 	reactor.init()
