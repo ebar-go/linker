@@ -1,5 +1,8 @@
 package pool
 
+type Worker interface {
+	Schedule(fn func())
+}
 type WorkerPool struct {
 	size int
 	task chan struct{}
@@ -7,28 +10,15 @@ type WorkerPool struct {
 
 func NewWorkerPool(size int) *WorkerPool {
 	pool := &WorkerPool{size: size, task: make(chan struct{}, size)}
-	for i := 0; i < size; i++ {
-		pool.task <- struct{}{}
-	}
 	return pool
 }
 
-// Take get a free worker from pool, it will block when pool is empty
-func (pool WorkerPool) Take() {
-	<-pool.task
-}
-
-// Release give back a worker to pool
-func (pool WorkerPool) Release() {
-	pool.task <- struct{}{}
-}
-
 // Submit run some task
-func (pool WorkerPool) Submit(fn func()) {
-	pool.Take()
+func (pool WorkerPool) Schedule(fn func()) {
+	pool.task <- struct{}{}
 	go func() {
-		defer pool.Release()
 		fn()
+		<-pool.task
 	}()
 }
 

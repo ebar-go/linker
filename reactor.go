@@ -44,8 +44,8 @@ func (reactor *MainReactor) init() {
 		reactor.children[i] = &SubReactor{
 			core:        reactor,
 			connections: make(map[int]Conn, 1024),
-			fd:          make(chan int, 64),         // 同时处理64个连接
-			workerPool:  pool.NewGoroutinePool(100), // 能同时处理100个请求
+			fd:          make(chan int, 1000),     // 同时处理1000个连接
+			workerPool:  pool.NewWorkerPool(1024), // 允许同时处理1024个请求
 		}
 	}
 	reactor.acceptor = core.NewAcceptor(reactor.dispatcher)
@@ -105,7 +105,7 @@ type SubReactor struct {
 	rmu         sync.RWMutex
 	connections map[int]Conn
 	fd          chan int
-	workerPool  *pool.GoroutinePool
+	workerPool  pool.Worker
 }
 
 func (reactor *SubReactor) Register(conn Conn) error {
