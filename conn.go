@@ -3,6 +3,7 @@ package linker
 import (
 	"bufio"
 	uuid "github.com/satori/go.uuid"
+	"linker/pkg/bytes"
 	"linker/pkg/poller"
 	"net"
 	"sync"
@@ -41,9 +42,9 @@ func newConn(conn net.Conn) *Connection {
 		fd:      poller.SocketFD(conn),
 		once:    new(sync.Once),
 		scanner: bufio.NewScanner(conn),
-		buffer:  make([]byte, 512),
+		buffer:  bytes.Get(512),
 	}
-	c.scanner.Buffer(c.buffer, 512)
+	c.scanner.Buffer(c.buffer, len(c.buffer))
 	return c
 }
 
@@ -62,6 +63,7 @@ func (conn *Connection) read() ([]byte, error) {
 
 func (conn *Connection) Close() {
 	conn.once.Do(func() {
+		bytes.Put(conn.buffer)
 		if conn.closedCallback != nil {
 			conn.closedCallback(conn)
 		}
