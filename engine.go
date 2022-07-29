@@ -14,9 +14,9 @@ type Engine struct {
 	mask         int
 }
 
-func newEngine() *Engine {
+func newEngine(ctxPoolSize int) *Engine {
 	engine := &Engine{
-		mask: 32,
+		mask: ctxPoolSize,
 	}
 	engine.init()
 	return engine

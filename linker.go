@@ -23,7 +23,7 @@ func NewReactor(opts ...Option) EventLoop {
 	}
 	reactor := &MainReactor{
 		EventHandler: new(EventHandler),
-		Engine:       newEngine(),
+		Engine:       newEngine(utils.RoundUp(option.ctxPoolSize)),
 		children:     make([]*SubReactor, utils.RoundUp(option.processor)),
 	}
 	reactor.init()
