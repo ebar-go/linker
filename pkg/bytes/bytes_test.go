@@ -2,6 +2,7 @@ package bytes
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -23,6 +24,19 @@ func BenchmarkByteSlice(b *testing.B) {
 		})
 	})
 
+}
+
+func BenchmarkSyncPool(b *testing.B) {
+	pool := sync.Pool{New: func() interface{} {
+		return make([]byte, 1024)
+	}}
+	b.Run("Run.N", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			bs := pool.Get()
+			pool.Put(bs)
+		}
+	})
 }
 
 func TestByteSlice(t *testing.T) {
