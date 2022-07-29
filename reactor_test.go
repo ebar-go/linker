@@ -34,7 +34,7 @@ func TestReactor(t *testing.T) {
 
 	}()
 	//system.SetLimit()
-	reactor := NewReactor()
+	reactor := NewReactor(WithProcessor(32))
 
 	reactor.OnConnect(func(conn Conn) {
 		connected++

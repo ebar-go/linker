@@ -1,5 +1,7 @@
 package linker
 
+import "linker/pkg/utils"
+
 const (
 	TCP = "tcp"
 	WS  = "websocket"
@@ -22,7 +24,7 @@ func NewReactor(opts ...Option) EventLoop {
 	reactor := &MainReactor{
 		EventHandler: new(EventHandler),
 		Engine:       newEngine(),
-		children:     make([]*SubReactor, option.processor),
+		children:     make([]*SubReactor, utils.RoundUp(option.processor)),
 	}
 	reactor.init()
 	return reactor

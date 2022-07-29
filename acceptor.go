@@ -1,19 +1,23 @@
-package core
+package linker
 
 import (
 	"log"
 	"net"
 )
 
-type Acceptor struct {
+type Acceptor interface {
+	Listen(addr string) error
+}
+
+type acceptor struct {
 	send           int
 	receive        int
 	keepalive      bool
 	connDispatcher func(conn net.Conn)
 }
 
-func NewAcceptor(dispatcher func(conn net.Conn)) *Acceptor {
-	return &Acceptor{
+func newAcceptor(dispatcher func(conn net.Conn)) *acceptor {
+	return &acceptor{
 		send:           4096,
 		receive:        4096,
 		keepalive:      false,
@@ -21,20 +25,32 @@ func NewAcceptor(dispatcher func(conn net.Conn)) *Acceptor {
 	}
 }
 
-func (loop *Acceptor) WithReadBuffer(bytes int) *Acceptor {
+func (loop *acceptor) WithReadBuffer(bytes int) *acceptor {
 	loop.receive = bytes
 	return loop
 }
-func (loop *Acceptor) WithWriteBuffer(bytes int) *Acceptor {
+func (loop *acceptor) WithWriteBuffer(bytes int) *acceptor {
 	loop.send = bytes
 	return loop
 }
 
-func (loop Acceptor) AcceptTCP(addr *net.TCPAddr) {
+type TCPAcceptor struct {
+	*acceptor
+}
+
+func (loop TCPAcceptor) Listen(bind string) (err error) {
+	addr, err := net.ResolveTCPAddr("tcp", bind)
+	if err != nil {
+		log.Printf("net.ResolveTCPAddr(tcp, %s) error(%v)", bind, err)
+		return
+	}
+	return loop.accept(addr)
+}
+
+func (loop TCPAcceptor) accept(addr *net.TCPAddr) (err error) {
 	var (
 		lis  *net.TCPListener
 		conn *net.TCPConn
-		err  error
 	)
 
 	if lis, err = net.ListenTCP("tcp", addr); err != nil {
@@ -62,12 +78,24 @@ func (loop Acceptor) AcceptTCP(addr *net.TCPAddr) {
 
 		loop.connDispatcher(conn)
 	}
+
 }
 
-func (loop Acceptor) AcceptUDP(addr *net.UDPAddr) {
+type UDPAcceptor struct {
+	*acceptor
+}
+
+func (loop UDPAcceptor) Listen(bind string) (err error) {
+	addr, err := net.ResolveUDPAddr("udp", bind)
+	if err != nil {
+		log.Printf("net.ResolveTCPAddr(tcp, %s) error(%v)", bind, err)
+		return
+	}
+	return loop.accept(addr)
+}
+func (loop UDPAcceptor) accept(addr *net.UDPAddr) (err error) {
 	var (
 		conn *net.UDPConn
-		err  error
 	)
 
 	for {
@@ -88,4 +116,14 @@ func (loop Acceptor) AcceptUDP(addr *net.UDPAddr) {
 		loop.connDispatcher(conn)
 
 	}
+}
+
+type WebsocketAcceptor struct {
+}
+
+func NewTCPAcceptor(dispatcher func(conn net.Conn)) *TCPAcceptor {
+	return &TCPAcceptor{acceptor: newAcceptor(dispatcher)}
+}
+func NewUDPAcceptor(dispatcher func(conn net.Conn)) *UDPAcceptor {
+	return &UDPAcceptor{acceptor: newAcceptor(dispatcher)}
 }

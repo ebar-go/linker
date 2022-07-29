@@ -2,7 +2,6 @@ package linker
 
 import (
 	"github.com/pkg/errors"
-	"linker/core"
 	"linker/pkg/poller"
 	"linker/pkg/pool"
 	"log"
@@ -14,27 +13,29 @@ type MainReactor struct {
 	*Engine
 	*EventHandler
 
-	poll     poller.Poller
-	acceptor *core.Acceptor
+	poll poller.Poller
+
 	children []*SubReactor
 }
 
 func (reactor *MainReactor) Run(protocol string, bind string) (err error) {
 	log.Printf("%s server listen: %s\n", protocol, bind)
+	var accept Acceptor
 	switch protocol {
 	case TCP:
-		err = reactor.listenTCP(bind)
+		accept = NewTCPAcceptor(reactor.dispatcher)
 	case UDP:
+		accept = NewUDPAcceptor(reactor.dispatcher)
 	case WS:
 
 	}
 
+	err = accept.Listen(bind)
 	if err != nil {
 		return
 	}
 
 	reactor.Use(reactor.EventHandler.HandleRequest)
-
 	reactor.run()
 	return
 }
@@ -53,7 +54,6 @@ func (reactor *MainReactor) init() {
 			workerPool:  pool.NewWorkerPool(1024), // 允许同时处理1024个请求
 		}
 	}
-	reactor.acceptor = core.NewAcceptor(reactor.dispatcher)
 }
 
 func (reactor *MainReactor) dispatcher(conn net.Conn) {
@@ -64,21 +64,6 @@ func (reactor *MainReactor) dispatcher(conn net.Conn) {
 		return
 	}
 	c.closedCallback = sub.Release
-}
-
-func (reactor *MainReactor) listenTCP(bind string) (err error) {
-	var (
-		addr *net.TCPAddr
-	)
-
-	if addr, err = net.ResolveTCPAddr("tcp", bind); err != nil {
-		log.Printf("net.ResolveTCPAddr(tcp, %s) error(%v)", bind, err)
-		return
-	}
-
-	go reactor.acceptor.AcceptTCP(addr)
-
-	return
 }
 
 func (reactor *MainReactor) run() {
