@@ -1,6 +1,7 @@
 package linker
 
 import (
+	"github.com/pkg/errors"
 	"linker/core"
 	"linker/pkg/poller"
 	"linker/pkg/pool"
@@ -39,7 +40,11 @@ func (reactor *MainReactor) Run(protocol string, bind string) (err error) {
 }
 
 func (reactor *MainReactor) init() {
-	reactor.poll, _ = poller.CreateEpoll()
+	var err error
+	reactor.poll, err = poller.CreateEpoll()
+	if err != nil {
+		panic(errors.WithMessage(err, "create poll"))
+	}
 	for i := range reactor.children {
 		reactor.children[i] = &SubReactor{
 			core:        reactor,
