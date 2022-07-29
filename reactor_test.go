@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	addr = "39.107.136.15:8086"
+	addr = "0.0.0.0:8086"
 )
 
 func startPprof() {
@@ -46,7 +46,7 @@ func TestReactor(t *testing.T) {
 		log.Println("disconnected", conn.FD())
 	})
 	reactor.OnRequest(func(ctx *Context) {
-		log.Println("receive:", string(ctx.Body()))
+		//log.Println("receive:", string(ctx.Body()))
 		ctx.Conn().Push([]byte("hello"))
 	})
 
@@ -114,28 +114,6 @@ func BenchmarkClient(b *testing.B) {
 		connections = append(connections, <-ch)
 	}
 	cancel()
-
-	//for i := 0; i < n; i++ {
-	//	c, err := net.DialTimeout("tcp", addr, 10*time.Second)
-	//	if err != nil {
-	//		i--
-	//		continue
-	//	}
-	//	connections = append(connections, c)
-	//	go func() {
-	//		for {
-	//			bytes := make([]byte, 100)
-	//			if _, err := c.Read(bytes); err != nil {
-	//				if err != io.EOF {
-	//					log.Println(err)
-	//					return
-	//				}
-	//
-	//			}
-	//		}
-	//
-	//	}()
-	//}
 
 	go func() {
 		metrics.Log(metrics.DefaultRegistry, 5*time.Second, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))

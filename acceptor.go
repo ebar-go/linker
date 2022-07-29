@@ -3,6 +3,7 @@ package linker
 import (
 	"log"
 	"net"
+	"runtime"
 )
 
 type Acceptor interface {
@@ -10,6 +11,7 @@ type Acceptor interface {
 }
 
 type acceptor struct {
+	core           int
 	send           int
 	receive        int
 	keepalive      bool
@@ -18,6 +20,7 @@ type acceptor struct {
 
 func newAcceptor(dispatcher func(conn net.Conn)) *acceptor {
 	return &acceptor{
+		core:           runtime.NumCPU(),
 		send:           4096,
 		receive:        4096,
 		keepalive:      false,
@@ -44,36 +47,41 @@ func (loop TCPAcceptor) Listen(bind string) (err error) {
 		log.Printf("net.ResolveTCPAddr(tcp, %s) error(%v)", bind, err)
 		return
 	}
-	return loop.accept(addr)
-}
 
-func (loop TCPAcceptor) accept(addr *net.TCPAddr) (err error) {
-	var (
-		lis  *net.TCPListener
-		conn *net.TCPConn
-	)
-
-	if lis, err = net.ListenTCP("tcp", addr); err != nil {
+	lis, err := net.ListenTCP("tcp", addr)
+	if err != nil {
 		return
 	}
+
+	for i := 0; i < loop.core; i++ {
+		go loop.accept(lis)
+	}
+	return
+}
+
+func (loop TCPAcceptor) accept(lis *net.TCPListener) {
+	var (
+		conn *net.TCPConn
+		err  error
+	)
 
 	for {
 		if conn, err = lis.AcceptTCP(); err != nil {
 			// if listener close then return
 			log.Printf("listener.Accept(\"%s\") error(%v)", lis.Addr().String(), err)
-			return
+			continue
 		}
 		if err = conn.SetKeepAlive(loop.keepalive); err != nil {
 			log.Printf("conn.SetKeepAlive() error(%v)", err)
-			return
+			continue
 		}
 		if err = conn.SetReadBuffer(loop.receive); err != nil {
 			log.Printf("conn.SetReadBuffer() error(%v)", err)
-			return
+			continue
 		}
 		if err = conn.SetWriteBuffer(loop.send); err != nil {
 			log.Printf("conn.SetWriteBuffer() error(%v)", err)
-			return
+			continue
 		}
 
 		loop.connDispatcher(conn)
@@ -91,26 +99,32 @@ func (loop UDPAcceptor) Listen(bind string) (err error) {
 		log.Printf("net.ResolveTCPAddr(tcp, %s) error(%v)", bind, err)
 		return
 	}
-	return loop.accept(addr)
+
+	for i := 0; i < loop.core; i++ {
+		go loop.accept(addr)
+	}
+
+	return
 }
-func (loop UDPAcceptor) accept(addr *net.UDPAddr) (err error) {
+func (loop UDPAcceptor) accept(addr *net.UDPAddr) {
 	var (
 		conn *net.UDPConn
+		err  error
 	)
 
 	for {
 		if conn, err = net.ListenUDP("udp", addr); err != nil {
 			log.Printf("net.ListenUDP(udp, %s) error(%v)", addr.IP, err)
-			return
+			continue
 		}
 
 		if err = conn.SetReadBuffer(loop.receive); err != nil {
 			log.Printf("conn.SetReadBuffer() error(%v)", err)
-			return
+			continue
 		}
 		if err = conn.SetWriteBuffer(loop.send); err != nil {
 			log.Printf("conn.SetWriteBuffer() error(%v)", err)
-			return
+			continue
 		}
 
 		loop.connDispatcher(conn)

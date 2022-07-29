@@ -32,12 +32,11 @@ func (reactor *MainReactor) Run(protocol string, bind string) (err error) {
 
 	}
 
-	go reactor.run()
 	err = accept.Listen(bind)
 	if err != nil {
 		return
 	}
-
+	reactor.run()
 	return
 }
 
