@@ -19,6 +19,8 @@ type MainReactor struct {
 }
 
 func (reactor *MainReactor) Run(protocol string, bind string) (err error) {
+	reactor.Use(reactor.EventHandler.HandleRequest)
+
 	log.Printf("%s server listen: %s\n", protocol, bind)
 	var accept Acceptor
 	switch protocol {
@@ -30,13 +32,12 @@ func (reactor *MainReactor) Run(protocol string, bind string) (err error) {
 
 	}
 
+	go reactor.run()
 	err = accept.Listen(bind)
 	if err != nil {
 		return
 	}
 
-	reactor.Use(reactor.EventHandler.HandleRequest)
-	reactor.run()
 	return
 }
 

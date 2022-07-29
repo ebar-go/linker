@@ -34,7 +34,7 @@ func TestReactor(t *testing.T) {
 
 	}()
 	//system.SetLimit()
-	reactor := NewReactor(WithProcessor(32))
+	reactor := NewReactor(WithProcessor(32), WithContextPoolSize(32))
 
 	reactor.OnConnect(func(conn Conn) {
 		connected++
@@ -46,7 +46,7 @@ func TestReactor(t *testing.T) {
 		log.Println("disconnected", conn.FD())
 	})
 	reactor.OnRequest(func(ctx *Context) {
-		//log.Println("receive:", string(ctx.Body()))
+		log.Println("receive:", string(ctx.Body()))
 		ctx.Conn().Push([]byte("hello"))
 	})
 

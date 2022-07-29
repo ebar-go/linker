@@ -1,7 +1,5 @@
 package linker
 
-import "runtime"
-
 type options struct {
 	processor   int
 	ctxPoolSize int
@@ -9,7 +7,8 @@ type options struct {
 
 func defaultOption() *options {
 	return &options{
-		processor: runtime.NumCPU(),
+		processor:   32,
+		ctxPoolSize: 32,
 	}
 }
 

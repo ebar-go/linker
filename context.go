@@ -22,7 +22,7 @@ func (ctx *Context) Body() []byte {
 	return ctx.body
 }
 func (ctx *Context) Run() {
-	ctx.engine.handleChains[0](ctx)
+	ctx.engine.processContext(ctx)
 	ctx.engine.releaseContext(ctx)
 }
 

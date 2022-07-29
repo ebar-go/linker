@@ -22,6 +22,10 @@ func newEngine(ctxPoolSize int) *Engine {
 	return engine
 }
 
+func (e *Engine) processContext(ctx *Context) {
+	e.handleChains[0](ctx)
+}
+
 func (e *Engine) allocateContext(conn Conn, body []byte) *Context {
 	return &Context{engine: e, conn: conn, body: body}
 }
