@@ -1,9 +1,9 @@
 package linker
 
 import (
+	"context"
 	"fmt"
 	"github.com/rcrowley/go-metrics"
-	"io"
 	"linker/pkg/system"
 	"log"
 	"math/rand"
@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	addr = "0.0.0.0:8086"
+	addr = "39.107.136.15:8086"
 )
 
 func startPprof() {
@@ -90,28 +90,52 @@ func BenchmarkClient(b *testing.B) {
 	system.SetLimit()
 	opsRate := metrics.NewRegisteredTimer("ops", nil)
 
+	ch := make(chan net.Conn, 50)
 	n := 10000
-	connections := make([]net.Conn, 0, 1024)
-	for i := 0; i < n; i++ {
-		c, err := net.DialTimeout("tcp", addr, 10*time.Second)
-		if err != nil {
-			i--
-		}
-		connections = append(connections, c)
-		go func() {
+	ctx, cancel := context.WithCancel(context.Background())
+	for i := 0; i < 10; i++ {
+		go func(ctx context.Context) {
 			for {
-				bytes := make([]byte, 100)
-				if _, err := c.Read(bytes); err != nil {
-					if err != io.EOF {
-						log.Println(err)
-						return
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					c, err := net.DialTimeout("tcp", addr, 10*time.Second)
+					if err == nil {
+						ch <- c
 					}
-
 				}
 			}
 
-		}()
+		}(ctx)
 	}
+	connections := make([]net.Conn, 0, 1024)
+	for len(connections) < n {
+		connections = append(connections, <-ch)
+	}
+	cancel()
+
+	//for i := 0; i < n; i++ {
+	//	c, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	//	if err != nil {
+	//		i--
+	//		continue
+	//	}
+	//	connections = append(connections, c)
+	//	go func() {
+	//		for {
+	//			bytes := make([]byte, 100)
+	//			if _, err := c.Read(bytes); err != nil {
+	//				if err != io.EOF {
+	//					log.Println(err)
+	//					return
+	//				}
+	//
+	//			}
+	//		}
+	//
+	//	}()
+	//}
 
 	go func() {
 		metrics.Log(metrics.DefaultRegistry, 5*time.Second, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
